@@ -19,9 +19,9 @@ object Solitaire extends App:
     rows.mkString("\n")
 
   def placeMarks(dim: Point2D)(using factory: IterableFactory): Iterable[Solution] =
-    inline def makeMove(inline pos: Point2D, inline dir: Point2D): Point2D = (pos._1 + dir._1, pos._2 + dir._2)
+    inline def makeMove(pos: Point2D, dir: Point2D): Point2D = (pos._1 + dir._1, pos._2 + dir._2)
 
-    inline def isMoveLegal(inline move: Point2D): Boolean =
+    inline def isMoveLegal(move: Point2D): Boolean =
       move._1 >= 0 && move._2 >= 0 && move._1 < dim._1 && move._2 < dim._2
 
     val directions = Vector((3, 0), (0, 3), (-3, 0), (0, -3), (-2, -2), (2, -2), (2, 2), (-2, 2))
