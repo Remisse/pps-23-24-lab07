@@ -42,9 +42,62 @@ class LoggingRobot(val robot: Robot) extends Robot:
     robot.act()
     println(robot.toString)
 
+trait FailableAction[R]:
+  protected def canExecute: Boolean
+  protected def tryExecute(action: => R, orElse: => R): R = if canExecute then action else orElse
+
+class RobotWithBattery(val robot: Robot, val maxBattery: Double, val consumption: Double) extends Robot with FailableAction[Unit]:
+  export robot.{position, direction}
+  require(0.0 <= consumption && consumption <= maxBattery, "")
+
+  private var currentBattery = maxBattery
+
+  private def drainBattery() = currentBattery = math.max(currentBattery - consumption, 0.0)
+  override protected def canExecute: Boolean = currentBattery > 0.0
+  override protected def tryExecute(action: => Unit, orElse: => Unit = None) =
+    if canExecute then
+      drainBattery()
+      action
+    else
+      orElse
+
+  override def turn(dir: Direction): Unit = tryExecute(robot.turn(dir))
+  override def act(): Unit = tryExecute(robot.act())
+  override def toString(): String = s"${robot.toString()} (battery: ${currentBattery})"
+
+class RobotCanFail(val robot: Robot, val failChance: Double) extends Robot with FailableAction[Unit]:
+  export robot.{position, direction}
+  require(0.0 <= failChance && failChance <= 1.0)
+
+  override protected def canExecute: Boolean = failChance == 0.0 || math.random() >= failChance
+
+  override def turn(dir: Direction): Unit = super.tryExecute(robot.turn(dir), println("failed to turn!"))
+  override def act(): Unit = super.tryExecute(robot.act(), println("failed to act!"))
+  override def toString(): String = robot.toString()
+
+class RobotRepeated(val robot: Robot, val repeatCount: Int) extends Robot:
+  export robot.{position, direction, turn}
+  require(repeatCount >= 0)
+
+  private def repeat(action: => Unit) = for _ <- 0 to repeatCount do action
+  override def act(): Unit = repeat(robot.act())
+  override def toString(): String = robot.toString()
+
 @main def testRobot(): Unit =
-  val robot = LoggingRobot(SimpleRobot((0, 0), Direction.North))
+  val robot = LoggingRobot(RobotWithBattery(SimpleRobot((0, 0), Direction.North), maxBattery = 100, consumption = 50))
   robot.act() // robot at (0, 1) facing North
   robot.turn(robot.direction.turnRight) // robot at (0, 1) facing East
-  robot.act() // robot at (1, 1) facing East
-  robot.act() // robot at (2, 1) facing East
+  robot.act() // robot at (0, 1) facing East
+  robot.act() // robot at (0, 1) facing East
+
+  val robotCF = LoggingRobot(RobotCanFail(SimpleRobot((0, 0), Direction.North), failChance = 0.5))
+  robotCF.act() 
+  robotCF.turn(robotCF.direction.turnRight)
+  robotCF.act() 
+  robotCF.act() 
+
+  val robotR = LoggingRobot(RobotRepeated(SimpleRobot((0, 0), Direction.North), repeatCount = 2))
+  robotR.act() // robot at (0, 3) facing North
+  robotR.turn(robotR.direction.turnRight)
+  robotR.act() // robot at (3, 3) facing East
+  robotR.act() // robot at (6, 3) facing East 
