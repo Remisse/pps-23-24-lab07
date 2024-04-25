@@ -7,44 +7,40 @@ object Solitaire extends App:
 
   given IterableFactory = Vector(_)
 
-  val directions: Vector[Point2D] = Vector((3, 0), (0, 3), (-3, 0), (0, -3), (-2, -2), (2, -2), (2, 2), (-2, 2))
-
   def render(solution: Solution, width: Int, height: Int): String =
-    val reversed = solution.reverse
     val rows =
       for
         y <- 0 until height
         row = for
           x <- 0 until width
-          number = reversed.indexOf((x, y)) + 1
+          number = solution.indexOf((x, y)) + 1
         yield if number > 0 then "%-2d ".format(number) else "X  "
       yield row.mkString
     rows.mkString("\n")
 
-  def placeMarks(dim: Point2D, start: Point2D)(using factory: IterableFactory): Iterable[Solution] =
+  def placeMarks(dim: Point2D)(using factory: IterableFactory): Iterable[Solution] =
     inline def makeMove(inline pos: Point2D, inline dir: Point2D): Point2D = (pos._1 + dir._1, pos._2 + dir._2)
 
     inline def isMoveLegal(move: Point2D): Boolean =
       move._1 >= 0 && move._2 >= 0 && move._1 < dim._1 && move._2 < dim._2
 
-    inline def isInSolution(move: Point2D, sol: Solution): Boolean = sol.exists { _ == move }
-
+    val directions = Vector((3, 0), (0, 3), (-3, 0), (0, -3), (-2, -2), (2, -2), (2, 2), (-2, 2))
     def _placeMarks(currentPos: Point2D, currentSol: Solution): Iterable[Solution] = currentSol.length match
-      case l if l == dim._1 * dim._2 => factory(Vector.empty)
+      case l if l == dim._1 * dim._2 => factory(currentSol)
       case _ =>
         for
           dir <- directions
           move = makeMove(currentPos, dir)
-          if isMoveLegal(move) && !isInSolution(move, currentSol)
+          if isMoveLegal(move) && !currentSol.contains(move)
           sol <- _placeMarks(move, currentSol :+ move)
-        yield sol :+ move
+        yield sol
 
-    for sol <- _placeMarks(start, Vector(start)) yield sol :+ start
+    val start = (dim._1 / 2, dim._2 / 2)
+    _placeMarks(start, Vector(start))
 
   @main def main() =
     val dim = (5, 7)
-    val start = (dim._1 / 2, dim._2 / 2)
-    val solutions: Iterable[Solution] = placeMarks(dim, start)
+    val solutions: Iterable[Solution] = placeMarks(dim)
     println(s"Solutions found: ${solutions.size}")
     println(s"First solution:")
     println(
