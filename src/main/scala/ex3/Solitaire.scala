@@ -2,48 +2,51 @@ package ex3
 
 object Solitaire extends App:
   type Point2D = (Int, Int)
-  type Solution = Vector[Point2D]
+  type Solution = Seq[Point2D]
+  type SolutionFactory = Point2D => Solution
   type IterableFactory = Solution => Iterable[Solution]
 
-  given IterableFactory = Vector(_)
+  given SolutionFactory = List(_) 
+  given IterableFactory = List(_)
+
+  extension (p: Point2D)
+    inline def add(p2: Point2D): Point2D = (p._1 + p2._1, p._2 + p2._2)
+
+  def placeMarks(width: Int, height: Int)(using solIterableFactory: IterableFactory, solFactory: SolutionFactory): Iterable[Solution] =
+    inline def isMoveLegal(m: Point2D): Boolean = m._1 >= 0 && m._2 >= 0 && m._1 < width && m._2 < height 
+
+    val directions = Array((3, 0), (0, 3), (-3, 0), (0, -3), (-2, -2), (2, -2), (2, 2), (-2, 2))
+    val boardSize = width * height 
+    def _placeMarks(currentPos: Point2D, currentSol: Solution, n: Int): Iterable[Solution] = n match
+      case 0 => solIterableFactory(currentSol)
+      case _ =>
+        for
+          dir <- directions
+          move = currentPos add dir
+          if isMoveLegal(move) && !(currentSol contains move)
+          sol <- _placeMarks(move, move +: currentSol, n - 1)
+        yield sol
+
+    val start = (width / 2, height / 2)
+    _placeMarks(currentPos = start, currentSol = solFactory(start), n = boardSize - 1)
 
   def render(solution: Solution, width: Int, height: Int): String =
+    val reversed = solution.reverse
     val rows =
       for
         y <- 0 until height
         row = for
           x <- 0 until width
-          number = solution.indexOf((x, y)) + 1
+          number = reversed.indexOf((x, y)) + 1
         yield if number > 0 then "%-2d ".format(number) else "X  "
       yield row.mkString
     rows.mkString("\n")
 
-  def placeMarks(dim: Point2D)(using factory: IterableFactory): Iterable[Solution] =
-    inline def makeMove(pos: Point2D, dir: Point2D): Point2D = (pos._1 + dir._1, pos._2 + dir._2)
-
-    inline def isMoveLegal(move: Point2D): Boolean =
-      move._1 >= 0 && move._2 >= 0 && move._1 < dim._1 && move._2 < dim._2
-
-    val directions = Vector((3, 0), (0, 3), (-3, 0), (0, -3), (-2, -2), (2, -2), (2, 2), (-2, 2))
-    val boardSize = dim._1 * dim._2
-    def _placeMarks(currentPos: Point2D, currentSol: Solution): Iterable[Solution] = currentSol.length match
-      case l if l == boardSize => factory(currentSol)
-      case _ =>
-        for
-          dir <- directions
-          move = makeMove(currentPos, dir)
-          if isMoveLegal(move) && !currentSol.contains(move)
-          sol <- _placeMarks(move, currentSol :+ move)
-        yield sol
-
-    val start = (dim._1 / 2, dim._2 / 2)
-    _placeMarks(start, Vector(start))
-
-  @main def main() =
-    val dim = (5, 7)
-    val solutions: Iterable[Solution] = placeMarks(dim)
-    println(s"Solutions found: ${solutions.size}")
-    println(s"First solution:")
-    println(
-      render(solution = solutions.headOption.fold(Vector.empty)(s => s), width = dim._1, height = dim._2)
-    )
+  val width = 5
+  val height = 7
+  val solutions: Iterable[Solution] = placeMarks(width, height)
+  println(s"Solutions found: ${solutions.size}")
+  println(s"First solution:")
+  println(
+    render(solution = solutions.headOption.fold(Seq.empty)(s => s), width, height)
+  )
