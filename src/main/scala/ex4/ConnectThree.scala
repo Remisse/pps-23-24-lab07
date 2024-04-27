@@ -1,6 +1,7 @@
 package ex4
 
 import java.util.OptionalInt
+import ex3.Solitaire.width
 
 // Optional!
 object ConnectThree extends App:
@@ -27,13 +28,35 @@ object ConnectThree extends App:
 
   import Player.*
 
-  def find(board: Board, x: Int, y: Int): Option[Player] = ???
+  def find(board: Board, x: Int, y: Int): Option[Player] = board.collectFirst {
+    case d if d.x == x && d.y == y => d.player
+  }
 
-  def firstAvailableRow(board: Board, x: Int): Option[Int] = ???
+  def firstAvailableRow(board: Board, x: Int): Option[Int] = board match
+    case Nil => Some(0)
+    case _ =>
+      board
+        .filter(_.x == x)
+        .sortWith(_.y > _.y)
+        .headOption
+        .collect { case d if d.y < bound => d.y + 1 }
 
-  def placeAnyDisk(board: Board, player: Player): Seq[Board] = ???
+  def placeAnyDisk(board: Board, player: Player): Seq[Board] =
+    for
+      x <- 0 to bound
+      y = firstAvailableRow(board, x).getOrElse(0)
+    yield
+      Disk(x, y, player) +: board
 
-  def computeAnyGame(player: Player, moves: Int): LazyList[Game] = ???
+  def computeAnyGame(player: Player, moves: Int): LazyList[Game] = moves match
+    case 0 => LazyList(Seq.empty)
+    case _ => 
+      for
+        g <- computeAnyGame(player.other, moves - 1)
+        b = g.headOption.getOrElse(Seq.empty)
+        newBoard <- placeAnyDisk(b, player)
+      yield
+        newBoard +: g
 
   def printBoards(game: Seq[Board]): Unit =
     for
