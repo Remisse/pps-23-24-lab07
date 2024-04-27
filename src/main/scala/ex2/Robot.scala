@@ -48,6 +48,7 @@ trait FailableAction[R]:
 
 class RobotWithBattery(val robot: Robot, val maxBattery: Double, val consumption: Double) extends Robot with FailableAction[Unit]:
   export robot.{position, direction}
+  require(maxBattery > 0.0)
   require(0.0 <= consumption && consumption <= maxBattery, "")
 
   private var currentBattery = maxBattery
