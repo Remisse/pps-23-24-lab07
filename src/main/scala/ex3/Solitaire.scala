@@ -16,7 +16,6 @@ object Solitaire extends App:
     inline def isMoveLegal(m: Point2D): Boolean = m._1 >= 0 && m._2 >= 0 && m._1 < width && m._2 < height 
 
     val directions = Array((3, 0), (0, 3), (-3, 0), (0, -3), (-2, -2), (2, -2), (2, 2), (-2, 2))
-    val boardSize = width * height 
     def _placeMarks(currentPos: Point2D, currentSol: Solution, n: Int): Iterable[Solution] = n match
       case 0 => solIterableFactory(currentSol)
       case _ =>
@@ -28,7 +27,8 @@ object Solitaire extends App:
         yield sol
 
     val start = (width / 2, height / 2)
-    _placeMarks(currentPos = start, currentSol = solFactory(start), n = boardSize - 1)
+    val n = width * height - 1
+    _placeMarks(currentPos = start, currentSol = solFactory(start), n = n)
 
   def render(solution: Solution, width: Int, height: Int): String =
     val reversed = solution.reverse
