@@ -30,21 +30,30 @@ class NonEmptyParser(chars: Set[Char]) extends BasicParser(chars) with NonEmpty[
 
 trait NotTwoConsecutive[T] extends Parser[T]:
   private[this] var previous: Option[T] = None
+  private[this] var consecutive = false
 
   abstract override def parse(t: T): Boolean = 
-    var areSymsDifferent = true
-    previous.fold(None) { p => areSymsDifferent = p != t }
+    if !consecutive then
+      consecutive = previous.fold(false) { _ == t }
     previous = Some(t)
-    areSymsDifferent & super.parse(t)
+    super.parse(t)
+
+  abstract override def end: Boolean = !consecutive && super.end
 
 class NotTwoConsecutiveParser(chars: Set[Char]) extends BasicParser(chars) with NotTwoConsecutive[Char]
   
-  // trait ShortenThenN:
-  //   self =>
-  //   def apply(n: Int) = 
+trait ShortenThenN[T](n: Int) extends Parser[T]:
+  private[this] var currentN: Int = 0
+
+  abstract override def parse(t: T): Boolean =
+    currentN = currentN + 1
+    super.parse(t)
+
+  abstract override def end: Boolean = currentN <= n && super.end
 
 @main def checkParsers(): Unit =
   def parser = new BasicParser(Set('a', 'b', 'c'))
+  println("- BasicParser")
   println(parser.parseAll("aabc".toList)) // true
   println(parser.parseAll("aabcdc".toList)) // false
   println(parser.parseAll("".toList)) // true
@@ -52,23 +61,33 @@ class NotTwoConsecutiveParser(chars: Set[Char]) extends BasicParser(chars) with 
   // Note NonEmpty being "stacked" on to a concrete class
   // Bottom-up decorations: NonEmptyParser -> NonEmpty -> BasicParser -> Parser
   def parserNE = new NonEmptyParser(Set('0', '1'))
+  println("- parserNE")
   println(parserNE.parseAll("0101".toList)) // true
   println(parserNE.parseAll("0123".toList)) // false
   println(parserNE.parseAll(List())) // false
 
   def parserNTC = new NotTwoConsecutiveParser(Set('X', 'Y', 'Z'))
+  println("- parserNTC")
   println(parserNTC.parseAll("XYZ".toList)) // true
   println(parserNTC.parseAll("XYYZ".toList)) // false
   println(parserNTC.parseAll("".toList)) // true
 
   // note we do not need a class name here, we use the structural type
   def parserNTCNE = new BasicParser(Set('X', 'Y', 'Z')) with NotTwoConsecutive[Char] with NonEmpty[Char]
+  println("- parserNTCNE")
   println(parserNTCNE.parseAll("XYZ".toList)) // true
   println(parserNTCNE.parseAll("XYYZ".toList)) // false
   println(parserNTCNE.parseAll("".toList)) // false
 
+  def parserS = new BasicParser(Set('X', 'Y', 'Z')) with ShortenThenN[Char](3)
+  println("- parserS")
+  println(parserS.parseAll("XYZ".toList)) // true
+  println(parserS.parseAll("XYYZ".toList)) // false
+  println(parserS.parseAll("X".toList)) // true
+
   import Parsers.*
-  def sparser: Parser[Char] = "abc".charParser()
-  println(sparser.parseAll("aabc".toList)) // true
-  println(sparser.parseAll("aabcdc".toList)) // false
-  println(sparser.parseAll("".toList)) // true
+  def stringParser: Parser[Char] = "abc".charParser()
+  println("- stringParser")
+  println(stringParser.parseAll("aabc".toList)) // true
+  println(stringParser.parseAll("aabcdc".toList)) // false
+  println(stringParser.parseAll("".toList)) // true
