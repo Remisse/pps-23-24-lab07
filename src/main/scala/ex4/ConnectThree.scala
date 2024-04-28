@@ -47,24 +47,35 @@ object ConnectThree extends App:
       y = firstAvailableRow(board, x).getOrElse(0)
     yield
       Disk(x, y, player) +: board
+  
+  extension [T](l: Seq[T])
+    inline def consecutivePairs: Seq[(T, T)] = l.sliding(2).map { 
+      case Seq(t1, t2) => (t1, t2) 
+      case _ => throw IllegalStateException()
+    }.toSeq
+
+  inline val pairsToWin = 2 // 3 for Connect Four
+  extension (l: Seq[(Disk, Disk)])
+    inline def are(pred: (Disk, Disk) => Boolean): Boolean =
+      l.filter(p => pred(p._1, p._2)).length == pairsToWin
 
   def computeAnyGame(player: Player, moves: Int): LazyList[Game] =
     def hasPlayerWon(player: Player, board: Board): Boolean =
-      inline def alignedHorizontally(d1: Disk, d2: Disk, d3: Disk): Boolean = (d1.y == d2.y && d2.y == d3.y) && (d1.x == d2.x - 1) && (d2.x == d3.x - 1)
-      inline def alignedVertically(d1: Disk, d2: Disk, d3: Disk): Boolean =   (d1.x == d2.x && d2.x == d3.x) && (d1.y == d2.y - 1) && (d2.y == d3.y - 1)
-      inline def alignedDiagonally(d1: Disk, d2: Disk, d3: Disk): Boolean = (d1.x == d2.x - 1 && d1.y == d2.y - 1) && (d2.x == d3.x - 1 && d2.y == d3.y - 1)
-      inline def areAligned(d1: Disk, d2: Disk, d3: Disk): Boolean =
-        alignedHorizontally(d1, d2, d3) || alignedVertically(d1, d2, d3) || alignedDiagonally(d1, d2, d3)
+      inline def alignedHorizontally: (Disk, Disk) => Boolean = (d1, d2) => (d1.y == d2.y) && (d1.x == d2.x - 1)
+      inline def alignedVertically:   (Disk, Disk) => Boolean = (d1, d2) => (d1.x == d2.x) && (d1.y == d2.y - 1)
+      inline def alignedDiagonally:   (Disk, Disk) => Boolean = (d1, d2) => (d1.x == d2.x - 1) && (d1.y == d2.y - 1)
 
       val b = board.filter(_.player == player)
       (for
-        d1 <- b 
-        d2 <- b 
+        d1 <- b
+        d2 <- b
         d3 <- b
-        if d1 != d2 && d1 != d3 && d2 != d3 && areAligned(d1, d2, d3)
+        // d4 <- b
+        disks = Seq(d1, d2, d3).consecutivePairs
+        if (disks are alignedHorizontally) || (disks are alignedVertically) || (disks are alignedDiagonally)
       yield
         true).headOption.isDefined
-
+    
     def compute(player: Player, moves: Int, game: Game): Iterable[Game] = moves match
       case 0 => Seq(game)
       case _ =>
