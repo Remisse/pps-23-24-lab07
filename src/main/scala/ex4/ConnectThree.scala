@@ -54,10 +54,9 @@ object ConnectThree extends App:
       case _ => throw IllegalStateException()
     }.toSeq
 
-  inline val pairsToWin = 2 // 3 for Connect Four
   extension (l: Seq[(Disk, Disk)])
-    inline def are(pred: (Disk, Disk) => Boolean): Boolean =
-      l.filter(p => pred(p._1, p._2)).length == pairsToWin
+    private inline def are(pred: (Disk, Disk) => Boolean): Boolean =
+      l.filter(p => pred(p._1, p._2)).length == l.length
 
   def computeAnyGame(player: Player, moves: Int): LazyList[Game] =
     def hasPlayerWon(player: Player, board: Board): Boolean =
