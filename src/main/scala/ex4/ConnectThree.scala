@@ -70,9 +70,8 @@ object ConnectThree extends App:
       for
         g <- computeAnyGame(player.other, moves - 1)
         b <- placeAnyDisk(g.head, player)
-        if !hasPlayerWon(player, b)
       yield 
-        b +: g
+        if hasPlayerWon(player.other, g.head) then g else b +: g
 
   def printBoards(game: Seq[Board]): Unit =
     for
@@ -111,7 +110,7 @@ object ConnectThree extends App:
   // ...O ..XO .X.O X..O
   println("EX 4: ")
 // Exercise 3 (ADVANCED!): implement computeAnyGame such that..
-  val games = computeAnyGame(O, 5)
+  val games = computeAnyGame(O, 6)
   games.foreach { g =>
     printBoards(g)
     println()
