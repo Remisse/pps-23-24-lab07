@@ -2,6 +2,8 @@ package ex4
 
 import java.util.OptionalInt
 import ex3.Solitaire.width
+import scala.util.boundary
+import boundary.break
 
 // Optional!
 object ConnectThree extends App:
@@ -49,43 +51,39 @@ object ConnectThree extends App:
       Disk(x, y, player) +: board
   
   extension [T](l: Seq[T])
-    inline def consecutivePairs: Seq[(T, T)] = l.sliding(2).map { 
-      case Seq(t1, t2) => (t1, t2) 
-      case _ => throw IllegalStateException()
-    }.toSeq
+    private inline def are(pred: (T, T) => Boolean): Boolean = l.sliding(2).forall { 
+      case Seq(t1, t2) => pred(t1, t2)
+    }
 
-  extension (l: Seq[(Disk, Disk)])
-    private inline def are(pred: (Disk, Disk) => Boolean): Boolean =
-      l.filter(p => pred(p._1, p._2)).length == l.length
+  def hasPlayerWon(player: Player, board: Board): Boolean =
+    inline def alignedHorizontally: (Disk, Disk) => Boolean = (d1, d2) => (d1.y == d2.y) && (d1.x == d2.x - 1)
+    inline def alignedVertically:   (Disk, Disk) => Boolean = (d1, d2) => (d1.x == d2.x) && (d1.y == d2.y - 1)
+    inline def alignedDiagonally:   (Disk, Disk) => Boolean = (d1, d2) => (d1.x == d2.x - 1) && (d1.y == d2.y - 1)
 
-  def computeAnyGame(player: Player, moves: Int): LazyList[Game] =
-    def hasPlayerWon(player: Player, board: Board): Boolean =
-      inline def alignedHorizontally: (Disk, Disk) => Boolean = (d1, d2) => (d1.y == d2.y) && (d1.x == d2.x - 1)
-      inline def alignedVertically:   (Disk, Disk) => Boolean = (d1, d2) => (d1.x == d2.x) && (d1.y == d2.y - 1)
-      inline def alignedDiagonally:   (Disk, Disk) => Boolean = (d1, d2) => (d1.x == d2.x - 1) && (d1.y == d2.y - 1)
+    var hasWon = false
+    val b = board.filter(_.player == player)
+    for
+      d1 <- b
+      d2 <- b
+      d3 <- b
+      // d4 <- b
+      disks = Seq(d1, d2, d3) //, d4)
+      if (disks are alignedHorizontally) || (disks are alignedVertically) || (disks are alignedDiagonally)
+    do
+      hasWon = true
+    hasWon
 
-      val b = board.filter(_.player == player)
-      (for
-        d1 <- b
-        d2 <- b
-        d3 <- b
-        // d4 <- b
-        disks = Seq(d1, d2, d3).consecutivePairs
-        if (disks are alignedHorizontally) || (disks are alignedVertically) || (disks are alignedDiagonally)
-      yield
-        true).headOption.isDefined
-    
-    def compute(player: Player, moves: Int, game: Game): Iterable[Game] = moves match
-      case 0 => Seq(game)
-      case _ =>
-        for
-          b <- placeAnyDisk(game.headOption.getOrElse(Seq.empty), player)
-          if !hasPlayerWon(player, b)
-          g <- compute(player.other, moves - 1, b +: game)
-        yield g
+  def computeAnyGame(player: Player, moves: Int): LazyList[Game] = moves match
+    case 0 => LazyList(Seq.empty)
+    case _ =>
+      for
+        g <- computeAnyGame(player.other, moves - 1)
+        lastB = g.headOption.getOrElse(Seq.empty)
+        b <- placeAnyDisk(lastB, player)
+        if !hasPlayerWon(player, b)
+      yield 
+        b +: g
 
-    compute(player, moves, Seq.empty).to(LazyList)
-    
   def printBoards(game: Seq[Board]): Unit =
     for
       y <- bound to 0 by -1
