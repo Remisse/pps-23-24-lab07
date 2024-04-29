@@ -29,21 +29,17 @@ object ConnectThree extends App:
     case d if d.x == x && d.y == y => d.player
   }
 
-  def firstAvailableRow(board: Board, x: Int): Option[Int] = board match
-    case Nil => Some(0)
-    case _ =>
-      board
-        .filter(_.x == x)
-        .sortWith(_.y > _.y)
-        .headOption
-        .collect { case d if d.y < bound => d.y + 1 }
+  def firstAvailableRow(board: Board, x: Int): Option[Int] = board.filter(_.x == x) match
+    case Nil      => Some(0)
+    case b: Board => b.sortWith(_.y > _.y).headOption.filter(_.y < bound).map(_.y + 1)
 
   def placeAnyDisk(board: Board, player: Player): Seq[Board] =
     for
       x <- 0 to bound
-      y = firstAvailableRow(board, x).getOrElse(0)
+      y = firstAvailableRow(board, x)
+      if y.isDefined
     yield
-      Disk(x, y, player) +: board
+      Disk(x, y.get, player) +: board
   
   extension [T](l: Seq[T])
     private inline def are(pred: (T, T) => Boolean): Boolean = l.sliding(2).forall { 
