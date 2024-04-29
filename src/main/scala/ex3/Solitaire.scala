@@ -7,28 +7,28 @@ object Solitaire extends App:
   type IterableFactory = Solution => Iterable[Solution]
 
   given SolutionFactory = List(_) 
-  given IterableFactory = List(_)
+  given IterableFactory = LazyList(_)
 
   extension (p: Point2D)
     inline def add(p2: Point2D): Point2D = (p._1 + p2._1, p._2 + p2._2)
 
-  def placeMarks(width: Int, height: Int)(using solIterableFactory: IterableFactory, solFactory: SolutionFactory): Iterable[Solution] =
+  def placeMarks(width: Int, height: Int)(using iterableFactory: IterableFactory, solFactory: SolutionFactory): Iterable[Solution] =
     inline def isMoveLegal(m: Point2D): Boolean = m._1 >= 0 && m._2 >= 0 && m._1 < width && m._2 < height 
 
+    val start = (width / 2, height / 2)
     val directions = Array((3, 0), (0, 3), (-3, 0), (0, -3), (-2, -2), (2, -2), (2, 2), (-2, 2))
-    def _placeMarks(currentPos: Point2D, currentSol: Solution, n: Int): Iterable[Solution] = n match
-      case 0 => solIterableFactory(currentSol)
+    def _placeMarks(n: Int): Iterable[Solution] = n match
+      case 0 => iterableFactory(solFactory(start))
       case _ =>
         for
+          sol <- _placeMarks(n - 1)
           dir <- directions
-          move = currentPos add dir
-          if isMoveLegal(move) && !(currentSol contains move)
-          sol <- _placeMarks(move, move +: currentSol, n - 1)
-        yield sol
+          move = sol.head add dir
+          if isMoveLegal(move) && !(sol contains move)
+        yield 
+          move +: sol
 
-    val start = (width / 2, height / 2)
-    val n = width * height - 1
-    _placeMarks(currentPos = start, currentSol = solFactory(start), n = n)
+    _placeMarks(width * height - 1)
 
   def render(solution: Solution, width: Int, height: Int): String =
     val reversed = solution.reverse
