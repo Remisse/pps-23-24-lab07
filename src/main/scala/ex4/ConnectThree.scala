@@ -1,10 +1,5 @@
 package ex4
 
-import java.util.OptionalInt
-import ex3.Solitaire.width
-import scala.util.boundary
-import boundary.break
-
 // Optional!
 object ConnectThree extends App:
   val bound = 3
@@ -74,12 +69,11 @@ object ConnectThree extends App:
     hasWon
 
   def computeAnyGame(player: Player, moves: Int): LazyList[Game] = moves match
-    case 0 => LazyList(Seq.empty)
+    case 0 => LazyList(Seq(Seq.empty))
     case _ =>
       for
         g <- computeAnyGame(player.other, moves - 1)
-        lastB = g.headOption.getOrElse(Seq.empty)
-        b <- placeAnyDisk(lastB, player)
+        b <- placeAnyDisk(g.head, player)
         if !hasPlayerWon(player, b)
       yield 
         b +: g
