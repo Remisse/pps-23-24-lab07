@@ -48,5 +48,5 @@ object Solitaire extends App:
   println(s"Solutions found: ${solutions.size}")
   println(s"First solution:")
   println(
-    render(solution = solutions.headOption.fold(Seq.empty)(s => s), width, height)
+    render(solution = solutions.headOption.getOrElse(Seq.empty), width, height)
   )
