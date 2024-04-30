@@ -49,6 +49,15 @@ object ConnectThree extends App:
     yield
       Disk(x, y, player) +: board
   
+  def computeAnyGame(player: Player, moves: Int): LazyList[Game] = moves match
+    case 0 => LazyList(Seq(Seq.empty))
+    case _ =>
+      for
+        g <- computeAnyGame(player.other, moves - 1)
+        b <- placeAnyDisk(g.head, player)
+      yield 
+        if hasWon(player.other, g.head) then g else b +: g
+
   extension [T](l: Seq[T])
     private inline def are(pred: (T, T) => Boolean): Boolean = l.sliding(2).forall { 
       case Seq(t1, t2) => pred(t1, t2)
@@ -71,15 +80,6 @@ object ConnectThree extends App:
     do
       hasWon = true
     hasWon
-
-  def computeAnyGame(player: Player, moves: Int): LazyList[Game] = moves match
-    case 0 => LazyList(Seq(Seq.empty))
-    case _ =>
-      for
-        g <- computeAnyGame(player.other, moves - 1)
-        b <- placeAnyDisk(g.head, player)
-      yield 
-        if hasWon(player.other, g.head) then g else b +: g
 
   def printBoards(game: Seq[Board]): Unit =
     for
