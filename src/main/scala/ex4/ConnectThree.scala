@@ -21,17 +21,19 @@ object ConnectThree extends App:
    *   0 1 2 3 <-- x
    */
   type Board = Seq[Disk]
-  type Game = Seq[Board]
 
-  private inline def maxBoardSize: Int = 
+  private inline def maxBoardSize: Int =
     val boundInc = bound + 1
     boundInc * boundInc
 
   extension (b: Board)
-    def put(x: Int, player: Player): (Board, Boolean) = firstAvailableRow(b, x) match
+    private def put(x: Int, player: Player): (Board, Boolean) = firstAvailableRow(b, x) match
       case None    => (b, false)
       case Some(y) => (Disk(x, y, player) +: b, true)
-    
+
+  type Game = Seq[Board]
+  private val newGame: Game = Seq(Seq.empty)
+
   import Player.*
 
   def find(board: Board, x: Int, y: Int): Option[Player] = board.collectFirst {
@@ -40,46 +42,40 @@ object ConnectThree extends App:
 
   def firstAvailableRow(board: Board, x: Int): Option[Int] = board.filter(_.x == x) match
     case Nil      => Some(0)
-    case b: Board => b.sortWith(_.y > _.y).headOption.filter(_.y < bound).map(_.y + 1)
+    case b: Board => b.maxByOption(_.y).collect { case d if d.y < bound => d.y + 1 }
 
   def placeAnyDisk(board: Board, player: Player): Seq[Board] =
     for
       x <- 0 to bound
       y <- firstAvailableRow(board, x)
-    yield
-      Disk(x, y, player) +: board
-  
+    yield Disk(x, y, player) +: board
+
   def computeAnyGame(player: Player, moves: Int): LazyList[Game] = moves match
-    case 0 => LazyList(Seq(Seq.empty))
+    case 0 => LazyList(newGame)
     case _ =>
       for
         g <- computeAnyGame(player.other, moves - 1)
         b <- placeAnyDisk(g.head, player)
-      yield 
-        if hasWon(player.other, g.head) then g else b +: g
-
-  extension [T](l: Seq[T])
-    private inline def are(pred: (T, T) => Boolean): Boolean = l.sliding(2).forall { 
-      case Seq(t1, t2) => pred(t1, t2)
-    }
+      yield if hasWon(player.other, g.head) then g else b +: g
 
   def hasWon(player: Player, board: Board): Boolean =
     inline def alignedHorizontally: (Disk, Disk) => Boolean = (d1, d2) => (d1.y == d2.y) && (d1.x == d2.x - 1)
-    inline def alignedVertically:   (Disk, Disk) => Boolean = (d1, d2) => (d1.x == d2.x) && (d1.y == d2.y - 1)
-    inline def alignedDiagonally:   (Disk, Disk) => Boolean = (d1, d2) => (d1.x == d2.x - 1) && (d1.y == d2.y - 1)
+    inline def alignedVertically: (Disk, Disk) => Boolean = (d1, d2) => (d1.x == d2.x) && (d1.y == d2.y - 1)
+    inline def alignedDiagonally: (Disk, Disk) => Boolean = (d1, d2) => (d1.x == d2.x - 1) && (d1.y == d2.y - 1)
 
-    var hasWon = false
     val b = board.filter(_.player == player)
-    for
+    (for
       d1 <- b
       d2 <- b
       d3 <- b
-      // d4 <- b
-      disks = Seq(d1, d2, d3) //, d4)
+      disks = Array(d1, d2, d3)
       if (disks are alignedHorizontally) || (disks are alignedVertically) || (disks are alignedDiagonally)
-    do
-      hasWon = true
-    hasWon
+    yield true).isDefinedAt(0)
+
+  extension [T](l: Seq[T])
+    private inline def are(pred: (T, T) => Boolean): Boolean = l.sliding(2).forall { case Seq(t1, t2) =>
+      pred(t1, t2)
+    }
 
   def printBoards(game: Seq[Board]): Unit =
     for
@@ -92,42 +88,38 @@ object ConnectThree extends App:
         print(" ")
         if board == game.head then println()
 
-  private object Controllables:
-    trait Controllable:
-      def tick(board: Board): Board 
-      def player: Player
+  object Controllables:
+    trait Controllable(val player: Player):
+      def tick(board: Board): Board
 
     import scala.util.Random
-    class RandomAI(_player: Player) extends Controllable:
+
+    class RandomAI(player: Player) extends Controllable(player):
       override def tick(board: Board): Board = Random.shuffle(placeAnyDisk(board, player)).head
-      override def player: Player = _player
-          
-    class SmartAI(_player: Player) extends Controllable:
-      override def tick(board: Board): Board = ???
-      override def player: Player = _player
 
-    class Human(_player: Player) extends Controllable:
+    class SmartAI(player: Player) extends Controllable(player):
       override def tick(board: Board): Board = ???
-      override def player: Player = _player
-    
+
+    class Human(player: Player) extends Controllable(player):
+      override def tick(board: Board): Board = ???
+
   import Controllables.*
-  def play(player1: Controllable, player2: Controllable, onVictory: Player => Unit): Seq[Game] =
-    require(player1.player != player2.player, "Controllables must own different players.")
 
-    def _play(p1: Controllable, p2: Controllable, moves: Int): Seq[Game] = moves match
-      case 0 => LazyList(Seq(Seq.empty))
+  def play(player1: Controllable, player2: Controllable, onVictory: Player => Unit): LazyList[Game] =
+    require(player1.player != player2.player, "Controllables should own different players.")
+
+    def _play(p1: Controllable, p2: Controllable, moves: Int): LazyList[Game] = moves match
+      case 0 => LazyList(newGame)
       case _ =>
         for
           g <- _play(p2, p1, moves - 1)
-          b = p1.tick(g.head)
           p1Won = hasWon(p1.player, g.head)
           p2Won = hasWon(p2.player, g.head)
         yield
-          if p1Won || p2Won then 
+          if p1Won || p2Won then
             onVictory(if p1Won then p1.player else p2.player)
-            g 
-          else 
-            b +: g
+            g
+          else p1.tick(g.head) +: g
 
     _play(player1, player2, maxBoardSize)
 
@@ -157,7 +149,7 @@ object ConnectThree extends App:
   // ...O ..XO .X.O X..O
   println("EX 4: ")
 // Exercise 3 (ADVANCED!): implement computeAnyGame such that..
-  // val games = computeAnyGame(O, 5)
+  // val games = computeAnyGame(O, 6)
   // games.foreach { g =>
   //   printBoards(g)
   //   println()
@@ -178,12 +170,7 @@ object ConnectThree extends App:
 // Exercise 5: AI
   println("Random AI:")
   var winner: Option[Player] = None
-  val p = play(RandomAI(Player.O), RandomAI(Player.X), w => winner = Some(w))
-  p.foreach { g => 
-    printBoards(g)
-    println()
-  }
+  play(RandomAI(Player.O), RandomAI(Player.X), w => winner = Some(w)).foreach(printBoards)
   winner match
     case Some(player) => println(s"${player} has won!")
     case None         => println("Draw!")
-  
