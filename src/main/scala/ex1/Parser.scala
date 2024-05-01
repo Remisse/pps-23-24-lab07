@@ -35,7 +35,7 @@ trait NotTwoConsecutive[T] extends Parser[T]:
   abstract override def parse(t: T): Boolean = 
     if !consecutive then
       consecutive = previous.fold(false) { _ == t }
-    previous = Some(t)
+      previous = Some(t)
     super.parse(t)
 
   abstract override def end: Boolean = !consecutive && super.end
@@ -83,11 +83,11 @@ trait ShortenThenN[T](n: Int) extends Parser[T]:
   println("- parserS")
   println(parserS.parseAll("XYZ".toList)) // true
   println(parserS.parseAll("XYYZ".toList)) // false
-  println(parserS.parseAll("X".toList)) // true
+  println(parserS.parseAll("".toList)) // true
 
   import Parsers.*
-  def stringParser: Parser[Char] = "abc".charParser()
-  println("- stringParser")
-  println(stringParser.parseAll("aabc".toList)) // true
-  println(stringParser.parseAll("aabcdc".toList)) // false
-  println(stringParser.parseAll("".toList)) // true
+  def parserFromString: Parser[Char] = "abc".charParser()
+  println("- parserFromString")
+  println(parserFromString.parseAll("aabc".toList)) // true
+  println(parserFromString.parseAll("aabcdc".toList)) // false
+  println(parserFromString.parseAll("".toList)) // true
