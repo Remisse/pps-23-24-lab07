@@ -81,12 +81,32 @@ class RobotCanFail(val robot: Robot, val failureChance: Double) extends Robot wi
   override def toString(): String = robot.toString()
 
 class RobotRepeated(val robot: Robot, val repeatCount: Int) extends Robot:
-  export robot.{position, direction, turn}
+  export robot.{position, direction}
   require(repeatCount >= 0, "Repeats count should not be negative.")
 
-  private def repeat(action: => Unit) = for _ <- 0 to repeatCount do action
+  import RotationMode.*
+
+  override def turn(dir: Direction): Unit =
+    val rotation: RotationMode = getFromToRotation(direction, dir)
+    repeat(robot.turn(rotation.rotate(direction)))
+    
   override def act(): Unit = repeat(robot.act())
   override def toString(): String = robot.toString()
+
+  private def repeat(action: => Unit) = for _ <- 0 to repeatCount do action
+
+  private enum RotationMode:
+    case Clockwise, CounterClockwise, Nothing
+
+    inline def rotate(dir: Direction): Direction = this match
+      case Clockwise => dir.turnRight
+      case CounterClockwise => dir.turnLeft
+      case _ => dir
+    
+  private inline def getFromToRotation(from: Direction, to: Direction): RotationMode = from match
+    case from if from == to => Nothing
+    case from if from.turnRight == to => Clockwise
+    case _ => CounterClockwise
 
 @main def testRobot(): Unit =
   val robot = LoggingRobot(
@@ -106,5 +126,5 @@ class RobotRepeated(val robot: Robot, val repeatCount: Int) extends Robot:
   val robotR = LoggingRobot(RobotRepeated(SimpleRobot((0, 0), Direction.North), repeatCount = 2))
   robotR.act() // robot at (0, 3) facing North
   robotR.turn(robotR.direction.turnRight)
-  robotR.act() // robot at (3, 3) facing East
-  robotR.act() // robot at (6, 3) facing East
+  robotR.act() // robot at (-3, 3) facing West
+  robotR.act() // robot at (-6, 3) facing West
