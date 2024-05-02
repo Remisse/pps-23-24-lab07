@@ -67,13 +67,17 @@ class RobotWithBattery(val robot: Robot, val batteryCapacity: Double, val consum
 
   override def toString(): String = s"${robot.toString()} (battery: ${currentBattery})"
 
-class RobotCanFail(val robot: Robot, val failureChance: Double) extends Robot with FailableAction[Unit]:
+import scala.util.Random
+
+class RobotCanFail(val robot: Robot, val failureChance: Double, val random: Random = Random())
+    extends Robot
+    with FailableAction[Unit]:
   export robot.{position, direction}
   require(0.0 <= failureChance && failureChance <= 1.0, "Failure chance should be a value between 0.0 and 1.0.")
 
   override def turn(dir: Direction): Unit = super.tryExecute(robot.turn(dir), println("failed to turn!"))
   override def act(): Unit = super.tryExecute(robot.act(), println("failed to act!"))
-  override protected def canExecute: Boolean = failureChance == 0.0 || math.random() >= failureChance
+  override protected def canExecute: Boolean = failureChance == 0.0 || random.nextDouble() >= failureChance
 
   override def toString(): String = robot.toString()
 
@@ -95,14 +99,14 @@ class RobotRepeated(val robot: Robot, val repeatCount: Int) extends Robot:
     case Clockwise, CounterClockwise, Nothing
 
     inline def rotate(dir: Direction): Direction = this match
-      case Clockwise => dir.turnRight
+      case Clockwise        => dir.turnRight
       case CounterClockwise => dir.turnLeft
-      case _ => dir
-    
+      case _                => dir
+
   private inline def getFromToRotation(from: Direction, to: Direction): RotationMode = from match
-    case from if from == to => Nothing
+    case from if from == to           => Nothing
     case from if from.turnRight == to => Clockwise
-    case _ => CounterClockwise
+    case _                            => CounterClockwise
 
 @main def testRobot(): Unit =
   val robot = LoggingRobot(
