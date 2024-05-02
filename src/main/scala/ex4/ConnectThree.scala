@@ -2,7 +2,9 @@ package ex4
 
 // Optional!
 object ConnectThree extends App:
-  val bound = 3
+  inline val bound = 3
+  private inline val maxBoardSize = (bound + 1) * (bound + 1)
+
   enum Player:
     case X, O
     def other: Player = this match
@@ -21,16 +23,6 @@ object ConnectThree extends App:
    *   0 1 2 3 <-- x
    */
   type Board = Seq[Disk]
-
-  private inline def maxBoardSize: Int =
-    val boundInc = bound + 1
-    boundInc * boundInc
-
-  extension (b: Board)
-    private def put(x: Int, player: Player): (Board, Boolean) = firstAvailableRow(b, x) match
-      case None    => (b, false)
-      case Some(y) => (Disk(x, y, player) +: b, true)
-
   type Game = Seq[Board]
   private val newGame: Game = Seq(Seq.empty)
 
@@ -56,26 +48,35 @@ object ConnectThree extends App:
       for
         g <- computeAnyGame(player.other, moves - 1)
         b <- placeAnyDisk(g.head, player)
-      yield if hasWon(player.other, g.head) then g else b +: g
+        w = g.head.winner
+      yield if w.isDefined then g else b +: g
 
-  def hasWon(player: Player, board: Board): Boolean =
-    inline def alignedHorizontally: (Disk, Disk) => Boolean = (d1, d2) => (d1.y == d2.y) && (d1.x == d2.x - 1)
-    inline def alignedVertically: (Disk, Disk) => Boolean = (d1, d2) => (d1.x == d2.x) && (d1.y == d2.y - 1)
-    inline def alignedDiagonally: (Disk, Disk) => Boolean = (d1, d2) => (d1.x == d2.x - 1) && (d1.y == d2.y - 1)
+  extension (b: Board)
+    private def put(x: Int, player: Player): (Board, Boolean) = firstAvailableRow(b, x) match
+      case None    => (b, false)
+      case Some(y) => (Disk(x, y, player) +: b, true)
 
-    val b = board.filter(_.player == player)
-    (for
-      d1 <- b
-      d2 <- b
-      d3 <- b
-      disks = Array(d1, d2, d3)
-      if (disks are alignedHorizontally) || (disks are alignedVertically) || (disks are alignedDiagonally)
-    yield true).isDefinedAt(0)
+    def winner: Option[Player] =
+      inline def hasWon(player: Player): Boolean =
+        val bf = b.filter(_.player == player)
+        (for
+          d1 <- bf
+          d2 <- bf
+          d3 <- bf
+          disks = Array(d1, d2, d3)
+          if (disks are alignedHorizontally) || (disks are alignedVertically) || (disks are alignedDiagonally)
+        yield true).isDefinedAt(0)
+
+      if hasWon(O) then return Some(O)
+      if hasWon(X) then return Some(X)
+      None
+
+  inline def alignedHorizontally: (Disk, Disk) => Boolean = (d1, d2) => (d1.y == d2.y) && (d1.x == d2.x - 1)
+  inline def alignedVertically: (Disk, Disk) => Boolean = (d1, d2) => (d1.x == d2.x) && (d1.y == d2.y - 1)
+  inline def alignedDiagonally: (Disk, Disk) => Boolean = (d1, d2) => (d1.x == d2.x - 1) && (d1.y == d2.y - 1)
 
   extension [T](l: Seq[T])
-    private inline def are(pred: (T, T) => Boolean): Boolean = l.sliding(2).forall { case Seq(t1, t2) =>
-      pred(t1, t2)
-    }
+    private inline def are(pred: (T, T) => Boolean): Boolean = l.sliding(2).forall { case Seq(t1, t2) => pred(t1, t2) }
 
   def printBoards(game: Seq[Board]): Unit =
     for
@@ -105,7 +106,7 @@ object ConnectThree extends App:
 
   import Controllables.*
 
-  def play(player1: Controllable, player2: Controllable, onVictory: Player => Unit): LazyList[Game] =
+  def play(player1: Controllable, player2: Controllable): LazyList[Game] =
     require(player1.player != player2.player, "Controllables should own different players.")
 
     def _play(p1: Controllable, p2: Controllable, moves: Int): LazyList[Game] = moves match
@@ -113,12 +114,9 @@ object ConnectThree extends App:
       case _ =>
         for
           g <- _play(p2, p1, moves - 1)
-          p1Won = hasWon(p1.player, g.head)
-          p2Won = hasWon(p2.player, g.head)
+          w = g.head.winner
         yield
-          if p1Won || p2Won then
-            onVictory(if p1Won then p1.player else p2.player)
-            g
+          if w.isDefined then g
           else p1.tick(g.head) +: g
 
     _play(player1, player2, maxBoardSize)
@@ -149,11 +147,11 @@ object ConnectThree extends App:
   // ...O ..XO .X.O X..O
   println("EX 4: ")
 // Exercise 3 (ADVANCED!): implement computeAnyGame such that..
-  // val games = computeAnyGame(O, 6)
-  // games.foreach { g =>
-  //   printBoards(g)
-  //   println()
-  // }
+  val games = computeAnyGame(O, 4)
+  games.foreach { g =>
+    printBoards(g)
+    println()
+  }
 //  .... .... .... .... ...O
 //  .... .... .... ...X ...X
 //  .... .... ...O ...O ...O
@@ -169,8 +167,8 @@ object ConnectThree extends App:
 
 // Exercise 5: AI
   println("Random AI:")
-  var winner: Option[Player] = None
-  play(RandomAI(Player.O), RandomAI(Player.X), w => winner = Some(w)).foreach(printBoards)
-  winner match
+  val randomGame = play(RandomAI(O), RandomAI(X))
+  randomGame.foreach(printBoards)
+  randomGame.head.head.winner match
     case Some(player) => println(s"${player} has won!")
     case None         => println("Draw!")
