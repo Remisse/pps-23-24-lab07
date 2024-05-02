@@ -58,26 +58,23 @@ class RobotWithBattery(val robot: Robot, val batteryCapacity: Double, val consum
 
   private var currentBattery = batteryCapacity
 
-  private def drainBattery() = currentBattery = math.max(currentBattery - consumption, 0.0)
+  override def turn(dir: Direction): Unit = super.tryExecute(drainAndThen(robot.turn(dir)), None)
+  override def act(): Unit = super.tryExecute(drainAndThen(robot.act()), None)
   override protected def canExecute: Boolean = currentBattery > 0.0
-  override protected def tryExecute(action: => Unit, orElse: => Unit = None) =
-    if canExecute then
-      drainBattery()
-      action
-    else orElse
 
-  override def turn(dir: Direction): Unit = tryExecute(robot.turn(dir))
-  override def act(): Unit = tryExecute(robot.act())
+  inline private def drainBattery() = currentBattery = math.max(currentBattery - consumption, 0.0)
+  inline private def drainAndThen(f: => Unit): Unit = { drainBattery(); f }
+
   override def toString(): String = s"${robot.toString()} (battery: ${currentBattery})"
 
 class RobotCanFail(val robot: Robot, val failureChance: Double) extends Robot with FailableAction[Unit]:
   export robot.{position, direction}
   require(0.0 <= failureChance && failureChance <= 1.0, "Failure chance should be a value between 0.0 and 1.0.")
 
-  override protected def canExecute: Boolean = failureChance == 0.0 || math.random() >= failureChance
-
   override def turn(dir: Direction): Unit = super.tryExecute(robot.turn(dir), println("failed to turn!"))
   override def act(): Unit = super.tryExecute(robot.act(), println("failed to act!"))
+  override protected def canExecute: Boolean = failureChance == 0.0 || math.random() >= failureChance
+
   override def toString(): String = robot.toString()
 
 class RobotRepeated(val robot: Robot, val repeatCount: Int) extends Robot:
@@ -89,11 +86,10 @@ class RobotRepeated(val robot: Robot, val repeatCount: Int) extends Robot:
   override def turn(dir: Direction): Unit =
     val rotation: RotationMode = getFromToRotation(direction, dir)
     repeat(robot.turn(rotation.rotate(direction)))
-    
   override def act(): Unit = repeat(robot.act())
-  override def toString(): String = robot.toString()
-
   private def repeat(action: => Unit) = for _ <- 0 to repeatCount do action
+
+  override def toString(): String = robot.toString()
 
   private enum RotationMode:
     case Clockwise, CounterClockwise, Nothing
