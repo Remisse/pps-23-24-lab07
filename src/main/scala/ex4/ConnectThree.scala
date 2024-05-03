@@ -64,7 +64,8 @@ object ConnectThree extends App:
           d2 <- bf
           d3 <- bf
           disks = Array(d1, d2, d3)
-          if (disks are alignedHorizontally) || (disks are alignedVertically) || (disks are alignedDiagonally)
+          if (disks are alignedHorizontally) || (disks are alignedVertically) || 
+            (disks are alignedDiagonallyRight) || (disks are alignedDiagonallyLeft)
         yield true).isDefinedAt(0)
 
       if hasWon(O) then return Some(O)
@@ -72,8 +73,14 @@ object ConnectThree extends App:
       None
 
   inline def alignedHorizontally: (Disk, Disk) => Boolean = (d1, d2) => (d1.y == d2.y) && (d1.x == d2.x - 1)
-  inline def alignedVertically: (Disk, Disk) => Boolean = (d1, d2) => (d1.x == d2.x) && (d1.y == d2.y - 1)
-  inline def alignedDiagonally: (Disk, Disk) => Boolean = (d1, d2) => (d1.x == d2.x - 1) && (d1.y == d2.y - 1)
+  inline def alignedVertically: (Disk, Disk) => Boolean =   (d1, d2) => (d1.x == d2.x) && (d1.y == d2.y - 1)
+  inline def alignedDiagonallyRight: (Disk, Disk) => Boolean = (d1, d2) => (d1.x == d2.x - 1) && (d1.y == d2.y - 1)
+  inline def alignedDiagonallyLeft: (Disk, Disk) => Boolean =  (d1, d2) => (d1.x == d2.x + 1) && (d1.y == d2.y - 1)
+
+  inline def clamp(v: Int, min: Int, max: Int): Int =
+    if v < min then min
+    else if v > max then max
+    else v
 
   extension [T](l: Seq[T])
     private inline def are(pred: (T, T) => Boolean): Boolean = l.sliding(2).forall { case Seq(t1, t2) => pred(t1, t2) }
