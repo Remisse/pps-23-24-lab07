@@ -63,19 +63,29 @@ object ConnectThree extends App:
           d1 <- bf
           d2 <- bf
           d3 <- bf
-          disks = Array(d1, d2, d3)
-          if (disks are alignedHorizontally) || (disks are alignedVertically) || 
-            (disks are alignedDiagonallyRight) || (disks are alignedDiagonallyLeft)
+          if areAligned(Seq(d1, d2, d3))
         yield true).isDefinedAt(0)
 
       if hasWon(O) then return Some(O)
       if hasWon(X) then return Some(X)
       None
 
+    def neighborsOfPlayer(disk: Disk): Seq[Disk] =
+      (for
+        x <- -1 to 1
+        y <- -1 to 1
+        xn = clamp(disk.x + x, 0, bound)
+        yn = clamp(disk.y + y, 0, bound)
+        otherP <- find(b, xn, yn)
+        if otherP == disk.player && find(b, xn, yn).isEmpty
+      yield Disk(xn, yn, otherP))
+
   inline def alignedHorizontally: (Disk, Disk) => Boolean = (d1, d2) => (d1.y == d2.y) && (d1.x == d2.x - 1)
   inline def alignedVertically: (Disk, Disk) => Boolean =   (d1, d2) => (d1.x == d2.x) && (d1.y == d2.y - 1)
   inline def alignedDiagonallyRight: (Disk, Disk) => Boolean = (d1, d2) => (d1.x == d2.x - 1) && (d1.y == d2.y - 1)
   inline def alignedDiagonallyLeft: (Disk, Disk) => Boolean =  (d1, d2) => (d1.x == d2.x + 1) && (d1.y == d2.y - 1)
+  inline def areAligned: Seq[Disk] => Boolean = disks => 
+    (disks are alignedHorizontally) || (disks are alignedVertically) || (disks are alignedDiagonallyRight) || (disks are alignedDiagonallyLeft)
 
   inline def clamp(v: Int, min: Int, max: Int): Int =
     if v < min then min
@@ -108,7 +118,35 @@ object ConnectThree extends App:
         bs(Random.nextInt(bs.length))
 
     class SmartAI(player: Player) extends Controllable(player):
-      override def tick(board: Board): Board = ???
+      private val randomAI = RandomAI(player)
+
+      override def tick(board: Board): Board =
+        inline def getWinningSpot(player: Player): Option[Disk] =
+          (for
+            b <- placeAnyDisk(board, player)
+            w <- b.winner
+            if w == player
+          yield b.filterNot(board.toSet)).flatten.headOption
+
+        val winningSpot = getWinningSpot(player)
+        if winningSpot.isDefined then return winningSpot.get +: board
+
+        val spotToBlock = getWinningSpot(player.other)
+        spotToBlock match
+          case Some(d) => return Disk(d.x, d.y, player) +: board
+          case _       =>
+
+        val neighbors: Seq[Disk] = (for
+          x <- 0 to bound
+          y = firstAvailableRow(board, x)
+          if y.isDefined
+          d1 = Disk(x, y.get, player)
+          d2 <- board.neighborsOfPlayer(d1)
+          if areAligned(Seq(d1, d2))
+        yield d2).flatMap(d => Seq(d))
+        if !neighbors.isEmpty then return neighbors(Random.nextInt(neighbors.length)) +: board
+
+        return randomAI.tick(board)
 
     class Human(player: Player) extends Controllable(player):
       override def tick(board: Board): Board = ???
@@ -179,5 +217,12 @@ object ConnectThree extends App:
   val randomGame = play(RandomAI(O), RandomAI(X))
   randomGame.foreach(printBoards)
   randomGame.head.head.winner match
+    case Some(player) => println(s"${player} has won!")
+    case None         => println("Draw!")
+
+  println("Smart AI:")
+  val smartGame = play(SmartAI(O), SmartAI(X))
+  smartGame.foreach(printBoards)
+  smartGame.head.head.winner match
     case Some(player) => println(s"${player} has won!")
     case None         => println("Draw!")
