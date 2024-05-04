@@ -103,7 +103,9 @@ object ConnectThree extends App:
     import scala.util.Random
 
     class RandomAI(player: Player) extends Controllable(player):
-      override def tick(board: Board): Board = Random.shuffle(placeAnyDisk(board, player)).head
+      override def tick(board: Board): Board =
+        val bs = placeAnyDisk(board, player)
+        bs(Random.nextInt(bs.length))
 
     class SmartAI(player: Player) extends Controllable(player):
       override def tick(board: Board): Board = ???
