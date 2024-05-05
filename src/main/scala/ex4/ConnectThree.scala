@@ -70,15 +70,14 @@ object ConnectThree extends App:
       if hasWon(X) then return Some(X)
       None
 
-    def neighborsOfPlayer(disk: Disk): Seq[Disk] =
+    def getUnoccupiedCellsNearby(disk: Disk): Seq[Disk] =
       (for
         x <- -1 to 1
-        y <- -1 to 1
         xn = clamp(disk.x + x, 0, bound)
-        yn = clamp(disk.y + y, 0, bound)
-        otherP <- find(b, xn, yn)
-        if otherP == disk.player && find(b, xn, yn).isEmpty
-      yield Disk(xn, yn, otherP))
+        yn <- firstAvailableRow(b, xn)
+        otherP = find(b, xn, yn)
+        if otherP.isEmpty
+      yield Disk(xn, yn, disk.player))
 
   inline def alignedHorizontally: (Disk, Disk) => Boolean = (d1, d2) => (d1.y == d2.y) && (d1.x == d2.x - 1)
   inline def alignedVertically: (Disk, Disk) => Boolean =   (d1, d2) => (d1.x == d2.x) && (d1.y == d2.y - 1)
@@ -121,28 +120,24 @@ object ConnectThree extends App:
       private val randomAI = RandomAI(player)
 
       override def tick(board: Board): Board =
-        inline def getWinningSpot(player: Player): Option[Disk] =
+        inline def getWinningCell(player: Player): Option[Disk] =
           (for
             b <- placeAnyDisk(board, player)
             w <- b.winner
             if w == player
           yield b.filterNot(board.toSet)).flatten.headOption
 
-        val winningSpot = getWinningSpot(player)
-        if winningSpot.isDefined then return winningSpot.get +: board
+        val winningCell = getWinningCell(player)
+        if winningCell.isDefined then return winningCell.get +: board
 
-        val spotToBlock = getWinningSpot(player.other)
-        spotToBlock match
+        val opponentWinningCell = getWinningCell(player.other)
+        opponentWinningCell match
           case Some(d) => return Disk(d.x, d.y, player) +: board
           case _       =>
 
         val neighbors: Seq[Disk] = (for
-          x <- 0 to bound
-          y = firstAvailableRow(board, x)
-          if y.isDefined
-          d1 = Disk(x, y.get, player)
-          d2 <- board.neighborsOfPlayer(d1)
-          if areAligned(Seq(d1, d2))
+          d1 <- board.filter(_.player == player)
+          d2 <- board.getUnoccupiedCellsNearby(d1)
         yield d2).flatMap(d => Seq(d))
         if !neighbors.isEmpty then return neighbors(Random.nextInt(neighbors.length)) +: board
 
