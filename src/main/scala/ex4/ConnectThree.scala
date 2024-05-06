@@ -52,10 +52,6 @@ object ConnectThree extends App:
       yield if w.isDefined then g else b +: g
 
   extension (b: Board)
-    private def put(x: Int, player: Player): (Board, Boolean) = firstAvailableRow(b, x) match
-      case None    => (b, false)
-      case Some(y) => (Disk(x, y, player) +: b, true)
-
     def winner: Option[Player] =
       inline def hasWon(player: Player): Boolean =
         val bf = b.filter(_.player == player)
@@ -72,22 +68,10 @@ object ConnectThree extends App:
       if hasWon(X) then return Some(X)
       None
 
-    def getUnoccupiedNeighbors(center: Disk): Seq[Disk] =
-      (for
-        x <- -1 to 1
-        xn = clamp(center.x + x, 0, bound)
-        yn <- firstAvailableRow(b, xn)
-      yield Disk(xn, yn, center.player))
-
   inline def alignedHorizontally: (Disk, Disk) => Boolean = (d1, d2) => (d1.y == d2.y) && (d1.x == d2.x - 1)
   inline def alignedVertically: (Disk, Disk) => Boolean = (d1, d2) => (d1.x == d2.x) && (d1.y == d2.y - 1)
   inline def alignedDiagonallyRight: (Disk, Disk) => Boolean = (d1, d2) => (d1.x == d2.x - 1) && (d1.y == d2.y - 1)
   inline def alignedDiagonallyLeft: (Disk, Disk) => Boolean = (d1, d2) => (d1.x == d2.x + 1) && (d1.y == d2.y - 1)
-
-  inline def clamp(v: Int, min: Int, max: Int): Int =
-    if v < min then min
-    else if v > max then max
-    else v
 
   extension [T](l: Seq[T])
     private inline def are(pred: (T, T) => Boolean): Boolean = l.sliding(2).forall { case Seq(t1, t2) => pred(t1, t2) }
@@ -140,9 +124,22 @@ object ConnectThree extends App:
         if !neighbors.isEmpty then return neighbors(Random.nextInt(neighbors.length)) +: board
 
         return randomAI.tick(board)
+      
+      extension (b: Board)
+        private inline def getUnoccupiedNeighbors(center: Disk): Seq[Disk] =
+          (for
+            x <- -1 to 1
+            xn = clamp(center.x + x, 0, bound)
+            yn <- firstAvailableRow(b, xn)
+          yield Disk(xn, yn, center.player))
 
     class Human(player: Player) extends Controllable(player):
       override def tick(board: Board): Board = ???
+
+  inline def clamp(v: Int, min: Int, max: Int): Int =
+    if v < min then min
+    else if v > max then max
+    else v
 
   import Controllables.*
 
