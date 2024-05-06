@@ -63,28 +63,26 @@ object ConnectThree extends App:
           d1 <- bf
           d2 <- bf
           d3 <- bf
-          if areAligned(Seq(d1, d2, d3))
+          disks = Seq(d1, d2, d3)
+          if (disks are alignedHorizontally) || (disks are alignedVertically) ||
+            (disks are alignedDiagonallyRight) || (disks are alignedDiagonallyLeft)
         yield true).isDefinedAt(0)
 
       if hasWon(O) then return Some(O)
       if hasWon(X) then return Some(X)
       None
 
-    def getUnoccupiedCellsNearby(disk: Disk): Seq[Disk] =
+    def getUnoccupiedNeighbors(center: Disk): Seq[Disk] =
       (for
         x <- -1 to 1
-        xn = clamp(disk.x + x, 0, bound)
+        xn = clamp(center.x + x, 0, bound)
         yn <- firstAvailableRow(b, xn)
-        otherP = find(b, xn, yn)
-        if otherP.isEmpty
-      yield Disk(xn, yn, disk.player))
+      yield Disk(xn, yn, center.player))
 
   inline def alignedHorizontally: (Disk, Disk) => Boolean = (d1, d2) => (d1.y == d2.y) && (d1.x == d2.x - 1)
-  inline def alignedVertically: (Disk, Disk) => Boolean =   (d1, d2) => (d1.x == d2.x) && (d1.y == d2.y - 1)
+  inline def alignedVertically: (Disk, Disk) => Boolean = (d1, d2) => (d1.x == d2.x) && (d1.y == d2.y - 1)
   inline def alignedDiagonallyRight: (Disk, Disk) => Boolean = (d1, d2) => (d1.x == d2.x - 1) && (d1.y == d2.y - 1)
-  inline def alignedDiagonallyLeft: (Disk, Disk) => Boolean =  (d1, d2) => (d1.x == d2.x + 1) && (d1.y == d2.y - 1)
-  inline def areAligned: Seq[Disk] => Boolean = disks => 
-    (disks are alignedHorizontally) || (disks are alignedVertically) || (disks are alignedDiagonallyRight) || (disks are alignedDiagonallyLeft)
+  inline def alignedDiagonallyLeft: (Disk, Disk) => Boolean = (d1, d2) => (d1.x == d2.x + 1) && (d1.y == d2.y - 1)
 
   inline def clamp(v: Int, min: Int, max: Int): Int =
     if v < min then min
@@ -137,7 +135,7 @@ object ConnectThree extends App:
 
         val neighbors: Seq[Disk] = (for
           d1 <- board.filter(_.player == player)
-          d2 <- board.getUnoccupiedCellsNearby(d1)
+          d2 <- board.getUnoccupiedNeighbors(d1)
         yield d2).flatMap(d => Seq(d))
         if !neighbors.isEmpty then return neighbors(Random.nextInt(neighbors.length)) +: board
 
