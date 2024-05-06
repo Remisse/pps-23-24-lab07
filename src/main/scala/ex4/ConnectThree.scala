@@ -129,17 +129,12 @@ object ConnectThree extends App:
         private inline def getUnoccupiedNeighbors(center: Disk): Seq[Disk] =
           (for
             x <- -1 to 1
-            xn = clamp(center.x + x, 0, bound)
+            xn = Math.clamp(center.x + x, 0, bound)
             yn <- firstAvailableRow(b, xn)
           yield Disk(xn, yn, center.player))
 
     class Human(player: Player) extends Controllable(player):
       override def tick(board: Board): Board = ???
-
-  inline def clamp(v: Int, min: Int, max: Int): Int =
-    if v < min then min
-    else if v > max then max
-    else v
 
   import Controllables.*
 
