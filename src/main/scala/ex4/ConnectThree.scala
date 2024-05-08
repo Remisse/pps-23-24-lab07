@@ -28,13 +28,13 @@ object ConnectThree extends App:
 
   import Player.*
 
-  def find(board: Board, x: Int, y: Int): Option[Player] = board.collectFirst {
-    case d if d.x == x && d.y == y => d.player
-  }
+  def find(board: Board, x: Int, y: Int): Option[Player] = 
+    board.collectFirst:
+      case Disk(`x`, `y`, p) => p
 
   def firstAvailableRow(board: Board, x: Int): Option[Int] = board.filter(_.x == x) match
     case Nil      => Some(0)
-    case b: Board => b.maxByOption(_.y).collect { case d if d.y < bound => d.y + 1 }
+    case b: Board => b.maxByOption(_.y).collect { case Disk(_, y, _) if y < bound => y + 1 }
 
   def placeAnyDisk(board: Board, player: Player): Seq[Board] =
     for
@@ -114,8 +114,8 @@ object ConnectThree extends App:
 
         val opponentWinningCell = getWinningCell(player.other)
         opponentWinningCell match
-          case Some(d) => return Disk(d.x, d.y, player) +: board
-          case _       =>
+          case Some(Disk(x, y, _)) => return Disk(x, y, player) +: board
+          case _                   =>
 
         val neighbors: Seq[Disk] = (for
           d1 <- board.filter(_.player == player)
@@ -131,6 +131,7 @@ object ConnectThree extends App:
             x <- -1 to 1
             xn = Math.clamp(center.x + x, 0, bound)
             yn <- firstAvailableRow(b, xn)
+            if math.abs(center.y - yn) <= 1
           yield Disk(xn, yn, center.player))
 
     class Human(player: Player) extends Controllable(player):
