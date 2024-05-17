@@ -1,5 +1,8 @@
 package ex4
 
+import scala.util.boundary
+import boundary.break
+
 // Optional!
 object ConnectThree extends App:
   inline val bound = 3
@@ -55,14 +58,17 @@ object ConnectThree extends App:
     def winner: Option[Player] =
       inline def hasWon(player: Player): Boolean =
         val bf = b.filter(_.player == player)
-        (for
-          d1 <- bf
-          d2 <- bf
-          d3 <- bf
-          disks = Seq(d1, d2, d3)
-          if (disks are alignedHorizontally) || (disks are alignedVertically) ||
-            (disks are alignedDiagonallyRight) || (disks are alignedDiagonallyLeft)
-        yield true).isDefinedAt(0)
+        boundary:
+          for
+            d1 <- bf
+            d2 <- bf
+            d3 <- bf
+            disks = Seq(d1, d2, d3)
+          do
+            if (disks are alignedHorizontally) || (disks are alignedVertically) ||
+              (disks are alignedDiagonallyRight) || (disks are alignedDiagonallyLeft) then
+              break(true)
+          false
 
       if hasWon(O) then return Some(O)
       if hasWon(X) then return Some(X)
@@ -123,7 +129,7 @@ object ConnectThree extends App:
         yield d2).flatMap(d => Seq(d))
         if !neighbors.isEmpty then return neighbors(Random.nextInt(neighbors.length)) +: board
 
-        return randomAI.tick(board)
+        randomAI.tick(board)
       
       extension (b: Board)
         private inline def getUnoccupiedNeighbors(center: Disk): Seq[Disk] =
